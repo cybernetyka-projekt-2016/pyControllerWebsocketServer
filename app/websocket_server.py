@@ -3,7 +3,6 @@
 # The MIT License (MIT)
 #
 # Copyright (c) Crossbar.io Technologies GmbH
-#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -24,9 +23,11 @@
 #
 ###############################################################################
 
+import json
+from math import sin, cos, pi, radians
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
-
+import a_star
 
 class ServerProtocol(WebSocketServerProtocol):
 
@@ -40,12 +41,31 @@ class ServerProtocol(WebSocketServerProtocol):
         if isBinary:
             print("Binary message received: {0} bytes".format(len(payload)))
         else:
-            print("Text message received: {0}".format(payload.decode('utf8')))
-
+            data = json.loads(payload.decode('utf8'))
+            x, y = data['x'], data['y']
+            x, y = rotate2d(-45, (float(x), float(y)), (0, 0))
+            robot.motors(int(x), int(y))
+            try:
+                print("{} ---------------".format(robot.read_distance()))
+            except Exception as e:
+                print(e)
+            print("{}    {}".format(x, y))
+        
         self.sendMessage(payload, isBinary)
 
     def onClose(self, wasClean, code, reason):
         print("WebSocket connection closed: {0}".format(reason))
+
+
+def rotate2d(degrees,point,origin):
+    x = point[0] - origin[0]
+    yorz = point[1] - origin[1]
+    newx = (x*cos(radians(degrees))) - (yorz*sin(radians(degrees)))
+    newyorz = (x*sin(radians(degrees))) + (yorz*cos(radians(degrees)))
+    newx += origin[0]
+    newyorz += origin[1] 
+    return newx, newyorz
+    
 
 
 if __name__ == '__main__':
@@ -54,11 +74,12 @@ if __name__ == '__main__':
 
     from twisted.python import log
     from twisted.internet import reactor
-
+    
     log.startLogging(sys.stdout)
 
+    robot = a_star.AStar()
     factory = WebSocketServerFactory(u"ws://0.0.0.0:9000")
-    factory.protocol = MyServerProtocol
+    factory.protocol = ServerProtocol
     factory.setProtocolOptions(maxConnections=2)
 
     reactor.listenTCP(9000, factory)
