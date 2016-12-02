@@ -46,9 +46,16 @@ class ServerProtocol(WebSocketServerProtocol):
             x, y = rotate2d(-45, (float(x), float(y)), (0, 0))
             robot.motors(int(x), int(y))
             try:
-                print("{} ---------------".format(robot.read_distance()))
+            	self.check_distance()
             except Exception as e:
                 print(e)
+            if self.obstacle_in_front is False:
+                robot.motors(int(x), int(y))   
+            elif self.obstacle_in_front is True and ( x and y ) < 0:
+                robot.motors(int(x), int(y))
+            else:
+                # nie mozna jechac na przeszkode
+                pass
             print("{}    {}".format(x, y))
         
         self.sendMessage(payload, isBinary)
@@ -56,6 +63,17 @@ class ServerProtocol(WebSocketServerProtocol):
     def onClose(self, wasClean, code, reason):
         print("WebSocket connection closed: {0}".format(reason))
 
+    def check_distance(self):
+        distance = robot.read_distance()
+        if distance in xrange(0, 2000):
+            self.handle_obstacle_in_front()
+        else:
+            self.obstacle_in_front = False
+
+    def handle_obstacle_in_front(self):
+        self.obstacle_in_front = True
+        # tu ewentualna komenda robota o przeszkodzie
+        pass
 
 def rotate2d(degrees,point,origin):
     x = point[0] - origin[0]
